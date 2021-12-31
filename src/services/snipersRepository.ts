@@ -5,6 +5,7 @@ const SnipersDb = new PouchDB<Sniper | SniperAttributes>("snipers");
 export class SniperAttributes {
   link: string = "";
   condition: string = "";
+  floorPrice?: number;
 }
 
 export interface Sniper extends SniperAttributes {
@@ -49,6 +50,17 @@ export const deleteSniper = (sniper: Sniper) => {
 
 export const updateSniper = (sniper: Sniper, newSniper: SniperAttributes) => {
   SnipersDb.put({ ...sniper, ...newSniper })
+    .then((response) => {
+      console.log("Updated sniper", response);
+    })
+    .catch((err) => {
+      console.log("Unable to delete sniper", err);
+      return Promise.reject(err);
+    });
+};
+
+export const updateFloorPrice = (sniper: Sniper, floorPrice: number) => {
+  SnipersDb.put({ ...sniper, floorPrice })
     .then((response) => {
       console.log("Updated sniper", response);
     })

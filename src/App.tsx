@@ -11,14 +11,18 @@ import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import Box from "@mui/system/Box";
 import * as React from "react";
 import { useCallback, useEffect } from "react";
-import {
-  Sniper,
-  SniperAttributes,
-} from "./services/snipersRepository";
+import { Sniper, SniperAttributes } from "./services/snipersRepository";
 import { useSnipers } from "./useSnipers";
+
+declare global {
+  interface Window {
+    fetchFloorPrice: any;
+  }
+}
 
 const theme = createTheme({
   palette: {
@@ -26,56 +30,74 @@ const theme = createTheme({
   },
 });
 
+interface SniperResult {
+  sniper: Sniper;
+  floorPrice: number;
+}
+
 interface ItemProps {
   sniper: Sniper;
   onDeleteSniper: (s: Sniper) => void;
   onUpdateSniper: (s: Sniper, a: SniperAttributes) => void;
 }
 
-// let snipers = [
-//   {
-//     link: "https://randomearth.io/collections/terra1fnv8f2202zgsnvpju7auehmygmdfj93xls8x0s?sort=price.asc&Item_=Sword%7CEgg",
-//   },
-//   {
-//     link: "https://randomearth.io/collections/terra1flwpxxfl8ldxhdgzxkwet2r37c45hutapgjwkg?sort=price.asc&Utility%20Level_=Ruby%7CThe%20Almond%20Bread%7CSapphire%7CEmerald%7CGold",
-//   },
-// ];
-
 const Item = ({ sniper, onDeleteSniper, onUpdateSniper }: ItemProps) => {
   const [expand, setExpand] = React.useState(false);
-  const [link, setLink] = React.useState(sniper.link);
-  const [condition, setCondition] = React.useState(sniper.condition);
-
   const toggleExpand = useCallback(() => {
     setExpand((prev) => !prev);
   }, [setExpand]);
 
+  const [link, setLink] = React.useState(sniper.link);
   const onLinkChange = useCallback(
     (event) => {
-    console.log("link changed")
+      console.log("link changed");
       setLink(event.target.value);
     },
     [setLink]
   );
 
+  const [condition, setCondition] = React.useState(sniper.condition);
   const onConditionChange = useCallback(
     (event) => {
-    console.log("condition changed")
+      console.log("condition changed");
       setCondition(event.target.value);
     },
     [setCondition]
   );
 
-  const onDeleteClick = useCallback(
-    () => {
-      onDeleteSniper(sniper);
-    },
-    [sniper]
-  );
+  const onDeleteClick = useCallback(() => {
+    onDeleteSniper(sniper);
+  }, [sniper, onDeleteSniper]);
+
+  const [floorPrice, setFloorPrice] = React.useState<number>();
 
   useEffect(() => {
-    onUpdateSniper(sniper, { link, condition });
-  }, [link, condition]);
+    onUpdateSniper(sniper, { link, condition, floorPrice });
+  }, [link, condition, floorPrice, onUpdateSniper]);
+
+  const onUpdatePricesClick = useCallback(() => {
+    window.fetchFloorPrice(sniper);
+  }, [sniper]);
+
+  const onNewFloorPrice = useCallback(
+    (event: Event) => {
+      console.log(event);
+      const { sniper, floorPrice } = (event as CustomEvent)
+        .detail as SniperResult;
+
+      console.log("window.addEventListener: New price arrived", floorPrice);
+      setFloorPrice(floorPrice);
+    },
+    [setFloorPrice]
+  );
+
+  React.useEffect(() => {
+    const eventName = `floorPriceFetched-${sniper._id}`;
+    window.addEventListener(eventName, onNewFloorPrice);
+    return () => {
+      window.removeEventListener(eventName, onNewFloorPrice);
+    };
+  }, [sniper, onNewFloorPrice]);
 
   return (
     <Paper sx={{ m: 1, p: 1 }}>
@@ -91,8 +113,6 @@ const Item = ({ sniper, onDeleteSniper, onUpdateSniper }: ItemProps) => {
           onChange={onLinkChange}
         />
 
-        <Button variant="outlined">Check market</Button>
-
         <TextField
           label="Condition"
           variant="outlined"
@@ -100,10 +120,16 @@ const Item = ({ sniper, onDeleteSniper, onUpdateSniper }: ItemProps) => {
           onChange={onConditionChange}
         />
 
+        <Button variant="outlined" onClick={onUpdatePricesClick}>
+          Update prices
+        </Button>
+
         <Checkbox
           icon={<CachedIcon />}
           checkedIcon={<CachedIcon color="primary" />}
         />
+
+        <Typography variant="body2">Filtered price: {floorPrice}</Typography>
 
         <IconButton onClick={onDeleteClick}>
           <DeleteIcon color="error" />
@@ -111,7 +137,9 @@ const Item = ({ sniper, onDeleteSniper, onUpdateSniper }: ItemProps) => {
       </Box>
 
       <Collapse in={expand} timeout="auto" unmountOnExit>
-        <Box>Tutaj będzie duzo szczegółów</Box>
+        <Box>
+          <Typography variant="body1">Filtered price: {floorPrice}</Typography>
+        </Box>
       </Collapse>
     </Paper>
   );
